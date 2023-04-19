@@ -110,28 +110,48 @@ const addHotel = async (req, res) => {
 }
 
 const allHotels = async (req, res) => {
+    const page = parseInt(req.query.page) - 1 || 0;
+    const limit = parseInt(req.query.limit) || 5;
+    console.log(page);
     console.log(req.body);
     const ownerId = req.body.Id
     const myHotels = await Hotel.find({
         $and: [
             { ownerId }, { status: true }
         ]
+    }).skip(page * limit).limit(limit)
+
+    const total = await Hotel.countDocuments({
+        $and: [
+            { ownerId }, { status: true }
+        ]
     })
-    res.json(myHotels)
+
+
+
+    res.json({
+        total,
+        page: page + 1,
+        limit,
+        myHotels
+    })
 }
 
 const addRoom = async (req, res) => {
-    // console.log(req.body)
-    console.log("hello");
-    // console.log(req.params.hotelId);
 
-    const { roomNumber, totalCapacity, description, aminities, imageUrls, roomType, price } = req.body
+    const { roomNumber, totalCapacity, description, imageUrls, roomType, price } = req.body
     const ownerId = req.body.Id
     const hotelId = req.params.hotelId
+    const aminities = req.body.aminities
+
+    const aminityValues = aminities.map((data) => {
+        return (
+            data.value
+        )
+    })
+    console.log(aminityValues);
 
 
-    console.log(roomNumber, totalCapacity, description, aminities[0].value, imageUrls, roomType);
-    // const checkOwnerExist = await Hotel.find({ ownerId })
 
     const newRoom = new Room({
         ownerId: ownerId,
@@ -140,7 +160,7 @@ const addRoom = async (req, res) => {
         roomNumber: roomNumber,
         totalCapacity: totalCapacity,
         roomType: roomType,
-        aminities: aminities[0].value,
+        aminities: aminityValues,
         description: description,
         images: imageUrls,
         price: price
@@ -159,7 +179,6 @@ const addRoom = async (req, res) => {
         res.json("Added new Room")
     })
 
-    // console.log(theNewRoomId);
 
 
 }
@@ -265,12 +284,17 @@ const deleteHotel = async (req, res) => {
 
     res.json({ message: "Deleted Hotel", hotelId })
 }
+
+
+
+
 const allRooms = async (req, res) => {
     const hotelId = req.params.hotelId
     console.log(hotelId);
 
-    const rooms = await Room.find({ hotelId: hotelId })
-    const hotel = await Hotel.find({ _id: hotelId })
+
+    const rooms = await Room.find({ $and: [{ hotelId: hotelId }, { status: true }] })
+    const hotel = await Hotel.find({ $and: [{ _id: hotelId }, { status: true }] })
 
     const hotelDetailes = hotel[0]
 
@@ -282,7 +306,7 @@ const getOwnerData = async (req, res) => {
 
     const ownerId = req.body.Id
     console.log(ownerId);
-    const hotel = await Hotel.find({ ownerId })
+    const hotel = await Hotel.find({ $and: [{ ownerId }, { status: true }] })
     const hotelCount = hotel.length
 
     console.log(hotel);
@@ -331,110 +355,121 @@ const approveRoom = async (req, res) => {
 
     const { dataId, Id: ownerId } = req.body
 
-    const approveThis = await BookingDetails.findOne({ _id: dataId })
+    const approveThis = await BookingDetails.findOne({ _id: dataId }).populate("hotelId").populate("roomId")
+    console.log(approveThis);
+    const hotelStatus = approveThis.hotelId.status
+    const roomStatus = approveThis.roomId.status
 
-    approveThis.status = true
+    console.log(hotelStatus, roomStatus);
 
-    approveThis.save().then((data) => {
-        console.log(data);
+    if (hotelStatus && roomStatus) {
+        approveThis.status = true
 
-        res.json({message:"Room Approved"})
-    }).catch((err) => {
-        console.log(err);
-    })
+        approveThis.save().then((data) => {
+            console.log(data);
 
-    // console.log(approveThis);
+            res.json({ message: "Room Approved" })
+        }).catch((err) => {
+            console.log(err);
+        })
+
+    } else {
+        
+                return res.json({ message: "Sorry this Room Or Hotel dont exist" , deletedItem:true})
+    }
+
+
 
 
 
 }
 
+const receivedBookingDetails = async (req, res) => {
 
-// const getOwnerData = async (req,res)=> {
-//     console.log("heee");
-//     console.log(req.body);
+    const { bookedId } = req.params
 
-//     const ownerID = req.body.
+    const bookedDetails = await BookingDetails.find({ _id: bookedId }).populate('hotelId').populate('roomId')
+    console.log(bookedDetails);
 
-// const ownerIdto = mongoose.Types.ObjectId(ownerID);
+    const hotelStatus = bookedDetails[0].hotelId.status
+    const roomStatus = bookedDetails[0].roomId.status
 
-// const ownerData = await User.find({_id:ownerIdto})
+    if(hotelStatus && roomStatus){
 
-// console.log(ownerData);
+        return res.json(bookedDetails)
+    }else{
+        return res.json({ message: "Sorry this Room Or Hotel dont exist" , deletedItem:true})
+    }
 
+    console.log(bookedDetails);
 
-// }
+}
 
+const deleteRoom = async (req, res) => {
 
-// const addHotel = async (req,res)=>{
-//     // console.log(req.body);
-//     // console.log(req.headers);
+    const roomId = req.params.roomId
+    console.log(roomId);
+    console.log("Ethi");
 
-//     const { hotelName, city, contact, pincode, district, description, images, ownerId, ownerName } = req.body
+    const roomToDelete = await Room.findOne({ _id: roomId })
 
-//     const checkOwnerExist =await Hotel.find({ownerId})
-//     console.log(checkOwnerExist);
+    console.log("Before");
+    console.log(roomToDelete);
 
+    roomToDelete.status = false
 
-//     if(checkOwnerExist.length!=0){
-//         console.log("owner Exist");
-//         const newHotelToAdd = {
-//             name: hotelName,
-//             city: city,
-//             contact: contact,
-//             pincode: pincode,
-//             district: district,
-//             description: description,
-//             images: images
-//         }
-//         // console.log(checkOwnerExist[0].hotels);
+    roomToDelete.save().then((data) => {
+        console.log(data);
+    }).catch((err) => {
+        console.log(err);
+    })
 
+    console.log("After");
+    console.log(roomToDelete);
 
+    res.json({ message: "Deleted Room", roomId })
+}
 
-//         checkOwnerExist[0].hotels.push(newHotelToAdd)
-//         checkOwnerExist[0].save((err, data) => {
-//             if (err) {
-//                 console.log(err);
-//             }
-//             // console.log(data);
-//         })
+const editRoomDetails = async (req, res) => {
 
-
-//         res.json("Hotel added for existing owner")
+    const ownerId = req.body.Id
+    const hotelId = req.params.roomId
 
 
-//         // checkOwnerExist[0].updateOne({ ownerId:ownerId }, { $push: { hotels: newHotelToAdd } },(err,data)=>{
-//         //     if(error){
-//         //         console.log(err);
-//         //     }
-//         //     console.log(data);
-//         // })
-//     }else{
-//         const newHotel = new Hotel({
-//             ownerId: ownerId,
-//             ownerName: ownerName,
-//             hotels: [{
-//                 name: hotelName,
-//                 city: city,
-//                 contact: contact,
-//                 pincode: pincode,
-//                 district: district,
-//                 description: description,
-//                 images: images
-//             }]
+    const theRoomToEdit = await Room.find({
+        $and: [
+            { _id: hotelId }, { ownerId: ownerId }
+        ]
+    })
 
-//         })
+    console.log(theRoomToEdit);
 
-//         newHotel.save((err, data) => {
-//             if (err) {
-//                 console.log(err);
-//             }
-//             // console.log(data);
-//         })
-//         res.json("owner collection created, Hotel added")
-//     }
-// }
 
+
+    res.json(theRoomToEdit)
+}
+
+
+const dashboardData = async (req, res) => {
+    // console.log(req.body);
+    const { Id } = req.body
+    console.log(Id);
+
+    const hotelCount = await Hotel.countDocuments({ $and: [{ ownerId: Id }, { status: true }] })
+
+    console.log(hotelCount);
+    res.json(hotelCount)
+
+
+}
+
+const allBookings = async (req, res) => {
+    const { Id } = req.body
+
+    const allBookings = await BookingDetails.find({ ownerId: Id }).populate("hotelId").populate("roomId")
+
+    res.json(allBookings)
+}
 
 
 
@@ -446,7 +481,12 @@ const approveRoom = async (req, res) => {
 
 
 module.exports = {
+    allBookings,
+    dashboardData,
+    editRoomDetails,
+    deleteRoom,
     ownerLogIn,
+    receivedBookingDetails,
     deleteHotelImg,
     addHotel,
     ownerRegister,

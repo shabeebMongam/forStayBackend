@@ -1,5 +1,6 @@
 const jwt =  require('jsonwebtoken')
-const jwt_decode =require('jwt-decode')
+const jwt_decode =require('jwt-decode');
+const { User } = require('../../models/userModel');
 
 
 
@@ -21,9 +22,16 @@ const verifyToken = (req,res,next)=>{
     // console.log(decoded); 
 
     req.body.Id = decoded._id;
+
+  
    
 
     jwt.verify(theToken, process.env.JWTPRIVATEKEY,(err,valid)=>{
+        // if(valid){
+        //     console.log(valid);
+        //         req.body.Id = decoded._id;
+        //         next()
+        // }
         if(err){
                 res.send("Invalid Token")
         }else{

@@ -3,11 +3,16 @@ const bcrypt = require("bcrypt");
 const validateUser = require("../helpers/loginValidater/loginValidate");
 const jwt = require("jsonwebtoken");
 const sendEmail = require('../helpers/verificationMail/nodeMailer')
-const Token = require("../models/tokenToVerifyMail")
+const Token = require("../models/tokenToVerifyMailModel")
 const crypto = require("crypto");
 const Hotel = require("../models/hotelOnlyModel");
 const Room = require("../models/roomOnlyModel");
 const BookingDetails = require("../models/bookingDetailsModel");
+const Razorpay = require('razorpay');
+const { start } = require("repl");
+const Address = require("../models/addressModel");
+const { search } = require("../routes/userRoutes");
+// const crypto = require('crypto')
 
 
 
@@ -119,12 +124,34 @@ const verifyUserEmail = async (req, res) => {
     }
 }
 
-const getHotels = async (req,res)=>{
+const getHotels = async (req, res) => {
+
     try {
+
+        const {searchData} = req.body
+
+        if(searchData ){
+
+            const hotelsAt = await Hotel.find({
+                $and: [
+                    { adminApproval: true }, { status: true }, {
+                        $or: [
+                            { city: new RegExp(searchData, "i") },
+                            { district: new RegExp(searchData, "i") }
+                        ]
+                    }
+                ]
+            })
+                console.log(hotelsAt);
+            return res.json(hotelsAt)
+        }
+
+
+
         const allHotels = await Hotel.find({
-             $and: [
-            { adminApproval: true }, { status: true }
-        ]
+            $and: [
+                { adminApproval: true }, { status: true }
+            ]
         })
         res.json(allHotels)
     } catch (error) {
@@ -132,12 +159,12 @@ const getHotels = async (req,res)=>{
     }
 }
 
-const getHotelData = async (req,res)=>{
-    try{
+const getHotelData = async (req, res) => {  
+    try {
         const hotelId = req.params.hotelId;
         console.log(hotelId);
 
-        const hotel = await Hotel.findOne({_id:hotelId}).populate({path:"rooms"})
+        const hotel = await Hotel.findOne({ _id: hotelId }).populate({ path: "rooms" })
 
         console.log(hotel);
 
@@ -145,12 +172,12 @@ const getHotelData = async (req,res)=>{
 
 
         res.json(hotel)
-    }catch(error){
+    } catch (error) {
         console.log(error);
     }
 }
 
-const getRoomData = async (req,res)=>{
+const getRoomData = async (req, res) => {
     try {
         const hotelId = req.params.hotelId;
         const roomId = req.params.roomId;
@@ -158,10 +185,14 @@ const getRoomData = async (req,res)=>{
         console.log(req.params);
 
 
-        const hotel=await Hotel.findOne({_id:hotelId})
-        const room=await Room.findOne({_id:roomId})
+        const hotel = await Hotel.findOne({ _id: hotelId })
+        const room = await Room.findOne({ _id: roomId })
 
-        res.json({hotel,room})
+
+        const reservedDates = room.reservedDates
+        console.log(reservedDates);
+        // console.log(new Date(reservedDates[0]));
+        res.json({ hotel, room })
 
 
     } catch (error) {
@@ -171,51 +202,90 @@ const getRoomData = async (req,res)=>{
 }
 
 
-const informOwnerBooking = (req,res)=>{
+const informOwnerBooking = async (req, res) => {
     // console.log(req.body);
-    const{values,roomId,hotelId,Id : userId,startDate,endDate} = req.body
-    // console.log(values);
+    const { values, roomId, hotelId, Id: userId, startDate, endDate } = req.body
+    console.log("here");
+    console.log(values);
+
+    const toGetOwnerId = await  Hotel.findOne({_id:hotelId})
+    const ownerId = toGetOwnerId.ownerId
+
+
+
+    if (values.saveAddress) {
+
+        const addingAddress = new Address({
+            userId,
+            name: values.name,
+            email: values.email,
+            address: values.address,
+            city: values.city,
+            state: values.state,
+            zipcode: values.zipcode
+        })
+
+        const afterSaving = await addingAddress.save()
+
+        const saveTheAddressInUser = await User.updateOne({ _id: userId }, { $push: { address: afterSaving._id } })
+    }
+
+
+    console.log("dsaddasdasda");
 
     const bookingData = new BookingDetails({
+        ownerId,
         hotelId,
         roomId,
         startDate,
         endDate,
         userId,
 
-        name:values.name,
-        email:values.email,
-        address:values.address,
-        city:values.city,
-        state:values.state,
-        zipcode:values.zipcode
+        name: values.name,
+        email: values.email,
+        address: values.address,
+        city: values.city,
+        state: values.state,
+        zipcode: values.zipcode
     })
 
-    bookingData.save().then((data)=>{
+    bookingData.save().then((data) => {
         console.log(data);
-        res.json({message:"Queued your Booking"})
+        res.json({ message: "Queued your Booking" })
     })
 
 }
 
-const getBookings = async (req,res)=>{
+const getBookings = async (req, res) => {
     console.log("yeas");
     console.log(req.body);
-    const {Id:userId} = req.body;
+    const { Id: userId } = req.body;
 
-    const bookingData = await BookingDetails.find({ userId })
+    const bookingData = await BookingDetails.find({ userId }).populate("roomId").populate("hotelId")
+    const bookingDataPaymentPending = await BookingDetails.find({ $and: [{ userId }, { paymentStatus: false }, { status: true }] }).populate("roomId").populate("hotelId")
+    const bookingDataApprovalPending = await BookingDetails.find({ $and: [{ userId }, { paymentStatus: false }, { status: false }] }).populate("roomId").populate("hotelId")
+    // const bookingDataExperienced = await BookingDetails.find({ $and: [{ userId  },{paymentStatus:true},{status:true}]}).populate("roomId")
+    // const bookingDataUpcoming = await BookingDetails.find({ $and: [{ userId  },{paymentStatus:false},{status:false}]}).populate("roomId")
     // console.log(bookingData);
-    res.json(bookingData)
+
+
+
+
+    // res.json(bookingDataPaymentPending)
+    res.json({bookingData,bookingDataApprovalPending,bookingDataPaymentPending})
 }
 
-const getUserData = async (req,res)=>{
-  console.log(req.body);
-  const {Id: userId} = req.body
 
-  const userData = await  User.findOne({_id:userId}) 
-  console.log(userData);
 
-  res.json(userData)
+
+const getUserData = async (req, res) => {
+    console.log(req.body);
+    const { Id: userId } = req.body
+
+    const userData = await User.findOne({ _id: userId })
+    console.log(userData);
+
+    res.json(userData)
 }
 
 
@@ -238,7 +308,7 @@ const getUserData = async (req,res)=>{
 
 
 //     } catch (error) {
-        
+
 //     }
 // }
 
@@ -246,11 +316,181 @@ const getUserData = async (req,res)=>{
 
 
 
+const forOrders = (req, res) => {
+    try {
+        const { price,roomId,orderId } = req.body
+        const instance = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET,
+        })
+        const options = {
+            amount: parseInt(price * 100),
+            currency: "INR",
+            receipt: crypto.randomBytes(10).toString("hex")
+        }
+        instance.orders.create(options, (error, order) => {
+            if (error) {
+                console.log(error);
+                return res.status(500).json({ message: "Something wrong one" })
+            }
+            res.status(200).json({ data: order, orderId,roomId })
+        })
+        // console.log("dsadada");
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
 
 
 
+const toVerify = (req, res) => {
+    try {
+        const razorpay_order_id = req.body.response.razorpay_order_id
+        const razorpay_payment_id = req.body.response.razorpay_payment_id
+        const razorpay_signature = req.body.response.razorpay_signature
+
+        const sign = razorpay_order_id + "|" + razorpay_payment_id
+        const expectedSign = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(sign.toString()).digest("hex")
 
 
+
+        if (razorpay_signature === expectedSign) {
+            return res.status(200).json({ successMessage: "Payment verified Successfully" })
+        } else {
+            return res.status(400).json({ message: "Invalid signature" })
+        }
+
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+let testData = 0
+
+const addReservedDate = async (req, res) => {
+    try {
+        const { orderId, roomId } = req.body
+        console.log(orderId,roomId);
+
+
+        const orderDetails = await BookingDetails.findOne({ _id: orderId })
+        // const roomDetails = await Room.findOne({ _id: roomId })
+
+        if (orderDetails) {
+
+            const startDate = orderDetails.startDate
+            const endDate = orderDetails.endDate
+
+            function getDatesInRange(startDate, endDate) {
+                const date = new Date(startDate.getTime());
+
+                const dates = [];
+
+                while (date <= endDate) {
+                    dates.push(new Date(date));
+                    date.setDate(date.getDate() + 1);
+                }
+
+                return dates;
+
+
+            }
+
+            const bookedDate = getDatesInRange(startDate, endDate)
+
+            console.log(bookedDate);
+
+            const addDateToRoom = await Room.updateOne({ _id: roomId },{$push:{reservedDates:{$each:[...bookedDate]}}})
+
+            // bookedDate.map((date) => roomDetails.reservedDates.push(date))
+
+            console.log(addDateToRoom);
+
+            testData++
+
+            console.log(testData);
+
+            orderDetails.paymentStatus = true
+            orderDetails.save().catch((err) => console.log(err))
+
+            res.json("added date")
+        }
+
+
+        // console.log(startDate,endDate);
+
+
+        // if (roomDetails?.reservedDates.length > 0) {
+        //     bookedDate.forEach((date) => roomDetails.reservedDates.push(date))
+        //     console.log("dsds");
+        // } else {
+        //     roomDetails.reservedDates = bookedDate
+        //     console.log("here");
+        // }
+
+
+        // roomDetails.save().then((data) => {
+        //     orderDetails.paymentStatus = true
+        //     orderDetails.save().catch((err) => console.log(err))
+        //     console.log(data);
+        // }).catch((err) => {
+        //     console.log(err);
+        // })
+
+
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+const placeSearch = async (req, res) => {
+
+
+    // console.log(req.body);
+    const { placeSearch } = req.body
+
+    const startDate = req.body.dates.startDate
+    const endDate = req.body.dates.endDate
+
+    console.log(startDate, endDate);
+    console.log(placeSearch);
+
+    const cityOrDist = await Hotel.find({
+        $or: [{ city: new RegExp(placeSearch, "i") },
+        { district: new RegExp(placeSearch, "i") }]
+
+    })
+
+    // res.json(cityOrDist)
+
+}
+
+const hotelByDistrict = async (req, res) => {
+    const { district } = req.params
+    console.log(district);
+    const hotels = await Hotel.find({ $and: [{ district: new RegExp(district, "i") }, { adminApproval: true }, { status: true }] })
+
+    res.json(hotels)
+}
+
+const getAddress = async (req, res) => {
+    console.log(req.body);
+    const { Id } = req.body
+
+    const allAddress = await User.find({ _id: Id }).populate("address")
+    console.log(allAddress[0].address);
+    res.json(allAddress[0].address)
+}
+
+const hotelDistWithCount = async (req, res) => {
+    console.log(req.body);
+
+
+}
 
 
 
@@ -258,13 +498,20 @@ const getUserData = async (req,res)=>{
 
 
 module.exports = {
+    hotelDistWithCount,
+    getAddress,
+    hotelByDistrict,
+    forOrders,
     userLogIn,
     userRegister,
     verifyUserEmail,
     getHotels,
-    getHotelData, 
+    getHotelData,
     getBookings,
     getRoomData,
     informOwnerBooking,
-    getUserData
+    getUserData,
+    toVerify,
+    addReservedDate,
+    placeSearch
 }

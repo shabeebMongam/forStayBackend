@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 
 const hotelOnlySchema = new mongoose.Schema({
-    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "Owner" },
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "owner" },
 
     name: { type: String, required: true },
     city: { type: String, required: true },
@@ -12,7 +12,9 @@ const hotelOnlySchema = new mongoose.Schema({
     images: { type: Array, required: true },
     status: { type: Boolean, default: true },
     adminApproval: { type: Boolean, default: false },
-    rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: "room" }]
+    rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: "room" }],
+    reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: "review" }],
+
 
 },
     {

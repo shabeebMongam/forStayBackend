@@ -10,25 +10,12 @@ const connectWithDB = require('./helpers/dbConnection/dbConnect')
 mongoose.set('strictQuery', true)
 const app = express()
 
-
-
-
-
-
-
-
-
-
 app.use(cors({ credentials: true, origin: 'http://localhost:3000' }))
 app.use(express.json())
-
-
-
 
 app.use('/', userRouter)
 app.use('/admin', adminRouter)
 app.use('/owner', ownerRouter)
-
 
 
 connectWithDB(process.env.MONGO_URI)

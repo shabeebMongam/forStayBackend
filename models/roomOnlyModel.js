@@ -11,8 +11,9 @@ const roomOnlySchema = new mongoose.Schema({
     images: { type: Array },
     aminities: { type: Array },
     status: { type: Boolean, default: true },
-    price:{type:Number,required:true}
-
+    price:{type:Number,required:true},
+    reservedDates:{type:[Date]}
+    
 },
     {
         timestamps: true
