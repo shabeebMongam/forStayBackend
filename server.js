@@ -9,7 +9,7 @@ const cors = require('cors')
 mongoose.set('strictQuery', true)
 const app = express()
 
-app.use(cors({ credentials: true, origin: 'http://localhost:3000' }))
+app.use(cors({ credentials: true, origin: 'https://second-frontend-mu.vercel.app/' }))
 app.use(express.json())
 
 app.use('/', userRouter)
