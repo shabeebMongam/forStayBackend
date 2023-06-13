@@ -6,7 +6,6 @@ const adminRouter = require('./routes/adminRoutes.js')
 const userRouter = require('./routes/userRoutes.js')
 const ownerRouter = require('./routes/ownerRoutes')
 const cors = require('cors')
-const connectWithDB = require('./helpers/dbConnection/dbConnect')
 mongoose.set('strictQuery', true)
 const app = express()
 
@@ -18,5 +17,23 @@ app.use('/admin', adminRouter)
 app.use('/owner', ownerRouter)
 
 
-connectWithDB(process.env.MONGO_URI)
-app.listen(PORT, () => { console.log(`http://localhost:${PORT}/`); })
+
+
+const connectWithDB = async (url) => {
+    try {
+       await mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true })
+            .then(() => {
+                console.log("Connected to BD");
+            }).catch((error) => {
+                console.log(error);
+            })
+
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+connectWithDB(process.env.MONGO_URI).then(()=>{
+    app.listen(PORT, () => { console.log(`http://localhost:${PORT}/`); })
+}
+)
