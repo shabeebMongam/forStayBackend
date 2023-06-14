@@ -13,12 +13,13 @@ module.exports = async (email, subject, text) => {
             },
         });
 
-        await transporter.sendMail({
+       const status = await transporter.sendMail({
             from: process.env.USER,
             to: email,
             subject: subject,
             text: text,
         });
+        console.log(status)
         console.log("email sent successfully");
     } catch (error) {
         console.log("email not sent!");
