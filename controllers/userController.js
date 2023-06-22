@@ -29,10 +29,14 @@ const userLogIn = async (req, res) => {
         if (!user)
             return res.status(401).send({ message: "No Account for this email" });
 
+           
         const validPassword = await bcrypt.compare(
             req.body.password,
             user.password
         );
+        if (!user.adminApproval) {
+            return res.send({ logHimOut: true });
+        }
         if (!validPassword)
             return res.status(401).send({ message: "Invalid Email or Password" });
 
@@ -41,6 +45,7 @@ const userLogIn = async (req, res) => {
             if (!token) {
                 token = await new Token({
                     userId: user._id,
+                   
                     token: crypto.randomBytes(32).toString("hex"),
                 }).save();
                 const url = `${process.env.BASE_URL}users/${user.id}/verify/${token.token}`;
@@ -51,6 +56,7 @@ const userLogIn = async (req, res) => {
                 .status(400)
                 .send({ message: "An Email sent to your account please verify" });
         }
+        
 
         const token = user.generateAuthToken();
         res.status(200).send({ userToken: token, message: "logged in successfully", userName: user.name });
@@ -88,8 +94,8 @@ const userRegister = async (req, res) => {
         console.log(process.env.BASE_URL);
         const url = `${process.env.BASE_URL}users/${user.id}/verify/${token.token}`;
 
-        await sendEmail(user.email, "Verify Email", url);
-
+         const status = await sendEmail(user.email, "Verify Email", url);
+console.log(status);
         res.status(201).send({ message: "An Email sent to your account please verify" });
 
     } catch (error) {
@@ -258,7 +264,7 @@ const informOwnerBooking = async (req, res) => {
 
 const getBookings = async (req, res) => {
     console.log("yeas");
-    console.log(req.body);
+    // console.log(req.body);
     const { Id: userId } = req.body;
 
     const bookingData = await BookingDetails.find({ userId }).populate("roomId").populate("hotelId")
@@ -269,10 +275,28 @@ const getBookings = async (req, res) => {
     // console.log(bookingData);
 
 
+    const notDeletedBookingData = bookingData.filter((data) => {
+        return (
+            data.hotelId.status && data.roomId.status
+        )
+    })
+    const notDeletedBookingDataPaymentPending = bookingDataPaymentPending.filter((data) => {
+        return (
+            data.hotelId.status && data.roomId.status
+        )
+    })
+    const notDeletedBookingDataApprovalPending = bookingDataApprovalPending.filter((data) => {
+        return (
+            data.hotelId.status && data.roomId.status
+        )
+    })
+
+    console.log(notDeletedBookingDataApprovalPending);
+
 
 
     // res.json(bookingDataPaymentPending)
-    res.json({bookingData,bookingDataApprovalPending,bookingDataPaymentPending})
+    res.json({ bookingData: notDeletedBookingData, bookingDataApprovalPending: notDeletedBookingDataPaymentPending, bookingDataPaymentPending: notDeletedBookingDataApprovalPending })
 }
 
 

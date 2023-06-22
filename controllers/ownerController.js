@@ -29,6 +29,9 @@ const ownerLogIn = async (req, res) => {
             req.body.password,
             owner.password
         );
+        if (!owner.verified) {
+            return res.send({ logHimOut: true });
+        }
         if (!validPassword)
             return res.status(401).send({ message: "Invalid Email or Password" });
 

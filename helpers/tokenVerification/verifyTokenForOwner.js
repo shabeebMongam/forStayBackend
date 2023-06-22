@@ -1,10 +1,10 @@
 const jwt = require('jsonwebtoken')
 const jwt_decode = require('jwt-decode');
-const { User } = require('../../models/userModel');
+const { Owner } = require('../../models/ownerModel');
 
 
 
-const verifyTokenForUser = (req, res, next) => {
+const verifyTokenForOwner = (req, res, next) => {
     // console.log(req.headers['authorization']);
     const authToken = req.headers['authorization']
 
@@ -23,29 +23,29 @@ const verifyTokenForUser = (req, res, next) => {
 
     // req.body.Id = decoded._id;
 
-    const validatingUser = async (id) => {
-        const validUser = await User.findOne({ _id: id })
-        console.log(validUser);
+    // const validatingUser = async (id) => {
+    //     const validUser = await User.findOne({ _id: id })
+    //     console.log(validUser);
 
-        if (validUser.adminApproval) {
-            return true
-        } else {
-            return false
-        }
-    }
+    //     if (validUser.adminApproval) {
+    //         return true
+    //     } else {
+    //         return false
+    //     }
+    // }
 
 
     jwt.verify(theToken, process.env.JWTPRIVATEKEY, async (err, valid) => {
         if (valid) {
             console.log(valid);
-            const validUser = await User.findOne({ _id: valid._id })
+            const validOwner = await Owner.findOne({ _id: valid._id })
 
-            if (validUser.adminApproval) {
+            if (validOwner.verified) {
                 req.body.Id = decoded._id;
                 next()
             }
-            else{
-                res.send({logHimOut:true})
+            else {
+                res.send({ logHimOut: true })
             }
 
 
@@ -57,5 +57,5 @@ const verifyTokenForUser = (req, res, next) => {
     // console.log(theToken);
 }
 
-module.exports = { verifyTokenForUser }
+module.exports = { verifyTokenForOwner }
 
