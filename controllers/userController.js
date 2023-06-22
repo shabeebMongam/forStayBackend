@@ -80,8 +80,8 @@ const userRegister = async (req, res) => {
         if (user) {
             return res.status(409).send({ message: "User with given email already Exist!" });
         }
-        const salt = await bcrypt.genSalt(Number(process.env.SALT));
-        const hashPassword = await bcrypt.hash(req.body.password, salt);
+//         const salt = await bcrypt.genSalt(Number(process.env.SALT));
+        const hashPassword = await bcrypt.hash(req.body.password, 10);
 
 
 

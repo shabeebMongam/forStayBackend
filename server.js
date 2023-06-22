@@ -9,7 +9,6 @@ const cors = require('cors')
 mongoose.set('strictQuery', true)
 const app = express()
 
-
 app.use(cors({ credentials: true, origin: process.env.BASE_URL }))
 app.use(express.json())
 
@@ -18,10 +17,9 @@ app.use('/admin', adminRouter)
 app.use('/owner', ownerRouter)
 
 
-
 const connectWithDB = async (url) => {
     try {
-       await mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true })
+        await mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true })
             .then(() => {
                 console.log("Connected to BD");
             }).catch((error) => {
@@ -33,7 +31,7 @@ const connectWithDB = async (url) => {
     }
 }
 
-connectWithDB(process.env.MONGO_URI).then(()=>{
+connectWithDB(process.env.MONGO_URI).then(() => {
     app.listen(PORT, () => { console.log(`http://localhost:${PORT}/`); })
 }
 )
