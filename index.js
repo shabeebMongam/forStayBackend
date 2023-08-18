@@ -35,3 +35,5 @@ connectWithDB(process.env.MONGO_URI).then(() => {
     app.listen(PORT, () => { console.log(`http://localhost:${PORT}/`); })
 }
 )
+
+module.exports = app
